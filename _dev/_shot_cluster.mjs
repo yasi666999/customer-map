@@ -1,0 +1,15 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch({ channel: 'msedge' });
+const page = await browser.newPage({ viewport: { width: 1500, height: 950 }, deviceScaleFactor: 2 });
+await page.goto('file:///D:/codex1/customer-map/打开地图.html');
+await page.waitForTimeout(2500);
+await page.click('#btn-import');
+await page.setInputFiles('#imp-file', 'D:/codex1/customer-map/汇总_按区县_三维.csv');
+await page.waitForFunction(() => { const l=document.getElementById('loading'), s=document.getElementById('st-total');
+  return l && l.hidden && s && parseInt((s.textContent||'0').replace(/,/g,''),10) > 1000; }, null, { timeout: 600000 });
+await page.waitForTimeout(5000);
+await page.selectOption('#p-mode', 'cluster');
+await page.waitForTimeout(3500);
+await page.screenshot({ path: 'D:/codex1/customer-map/界面_deckgl_点聚合.png' });
+console.log('点聚合截图 OK');
+await browser.close();

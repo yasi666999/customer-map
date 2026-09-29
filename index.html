@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>客户分布分析</title>
+<link rel="stylesheet" href="styles.css?v=21">
+<link rel="stylesheet" href="ui.css?v=14f654c0">
+</head>
+<body>
+
+<!-- ============ 顶栏：品牌 + 数据摘要 + 全局操作 ============ -->
+<header class="topbar">
+  <div class="brand">客户分布分析<span class="ver" id="ver">v28</span></div>
+  <div class="summary">
+    <span><b id="st-total">0</b><i>条</i></span>
+    <span><b id="st-cust">0</b><i>客户</i></span>
+    <span class="dim"><b id="st-ok">0</b><i>已定位</i></span>
+    <span class="dim"><b id="st-todo">0</b><i>待处理</i></span>
+    <span id="st-cust-wrap" hidden><b id="st-cust2">0</b></span>
+    <span id="st-progress-wrap" hidden><b id="st-progress">0%</b></span>
+  </div>
+  <div class="actions">
+    <button type="button" class="btn" id="btn-import">导入数据</button>
+    <button type="button" class="btn ghost" id="btn-run" disabled>开始解析</button>
+    <button type="button" class="btn ghost" id="btn-export" disabled>导出</button>
+    <button type="button" class="btn ghost" id="btn-views">视图</button>
+    <button type="button" class="btn ghost" id="btn-settings">设置</button>
+  </div>
+</header>
+
+<!-- ============ 视图切换 + 筛选 ============ -->
+<nav class="viewbar">
+  <div class="segmented" id="viewswitch">
+    <button type="button" class="on" data-view="map">地图</button>
+    <button type="button" data-view="analysis">分析</button>
+    <button type="button" data-view="data">数据</button>
+  </div>
+  <button type="button" class="filterbtn" id="sf-head">
+    <span>筛选</span><span class="chev" id="sf-chev">展开</span>
+  </button>
+  <div class="sf-sum" id="sf-sum">未筛选</div>
+  <div class="chiprow" id="chips" hidden></div>
+</nav>
+<div class="filterbar collapsed" id="sf-body">
+  <div class="fb-inner">
+    <div class="fb-line">
+      <span class="fb-lb">时间</span>
+      <input type="date" id="f-from"><span class="fb-tilde">~</span><input type="date" id="f-to">
+      <div class="sf-quick" id="sf-quick">
+        <button type="button" data-range="all">全部</button>
+        <button type="button" data-range="7">近7天</button>
+        <button type="button" data-range="30">近30天</button>
+        <button type="button" data-range="90">近90天</button>
+        <button type="button" data-range="month">本月</button>
+      </div>
+    </div>
+    <div class="fb-line">
+      <span class="fb-lb">平台</span>
+      <div class="sf-plats" id="f-plats"></div>
+    </div>
+  </div>
+</div>
+
+<main class="workspace">
+
+  <!-- ============ 视图一：地图 ============ -->
+  <section class="view" id="view-map">
+    <div id="map"></div>
+    <div class="mapwarn" id="mapwarn" hidden></div>
+
+    <!-- 地图功能栏：所有"能点的东西"集中在这一条上。
+         左边是切面板的（显示/范围/常驻/图层），右边是直接作用于地图的动作
+         （看全图/缩放/框选/截图/全屏/底图）。以前这两组分在屏幕两个角，
+         找东西要来回看。 -->
+    <div class="maptopbar">
+    <div class="mapnav">
+      <button type="button" class="mn on" data-panel="display" title="显示样式">◐</button>
+      <button type="button" class="mn" data-panel="radius" title="辐射范围">◎</button>
+      <button type="button" class="mn" data-panel="base" title="常驻地址">⌂</button>
+      <button type="button" class="mn" data-panel="layers" title="图层">▤</button>
+    </div>
+    <span class="toolsep" aria-hidden="true"></span>
+    <div class="maptools">
+      <button type="button" class="toolbtn" id="btn-zoomin" title="放大"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></button>
+      <button type="button" class="toolbtn" id="btn-zoomout" title="缩小"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12"/></svg></button>
+      <button type="button" class="toolbtn" id="btn-fit" title="看全图"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7V3h4M17 7V3h-4M3 13v4h4M17 13v4h-4"/></svg></button>
+      <button type="button" class="toolbtn" id="btn-box" title="框选统计"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h3M8.5 5h3M14 5h3M17 8v3M17 14v3h-3M8.5 17h3M3 17h2M3 14v-3M3 8V5"/></svg></button>
+      <button type="button" class="toolbtn" id="btn-shot" title="保存地图图片"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9M6.5 8.5L10 12l3.5-3.5M4 15v2h12v-2"/></svg></button>
+      <button type="button" class="toolbtn" id="btn-full" title="全屏"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7V3h4M17 7V3h-4M3 13v4h4M17 13v4h-4"/></svg></button>
+      <button type="button" class="toolbtn" id="btn-basemap" title="切换底图"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3l7 3.5-7 3.5-7-3.5L10 3zM3 10l7 3.5L17 10M3 13.5L10 17l7-3.5"/></svg></button>
+    </div>
+    </div>
+
+    <!-- 悬停提示：参考 deck.gl 的 picking -->
+    <div class="maptip" id="maptip" hidden></div>
+
+    <!-- 图例：参考 kepler.gl 的 legend -->
+    <div class="maplegend" id="maplegend" hidden>
+      <div class="ml-head"><span id="ml-title">图例</span><button type="button" class="ml-fold" id="ml-fold" title="收起">−</button></div>
+      <div class="ml-body" id="ml-body"></div>
+    </div>
+
+    <!-- 框选结果条 -->
+    <div class="boxbar" id="boxbar" hidden>
+      <span id="box-text">已框选 0 条</span>
+      <button type="button" class="btn tiny" id="box-only">只看框内</button>
+      <button type="button" class="btn tiny ghost" id="box-clear">取消</button>
+    </div>
+
+    <!-- 区域选中条（分层着色模式） -->
+    <div class="boxbar regionbar" id="regionbar" hidden>
+      <span id="region-text">已选中</span>
+      <button type="button" class="btn tiny" id="region-only">只看这个区域</button>
+      <button type="button" class="btn tiny ghost" id="region-clear">取消</button>
+    </div>
+
+    <!-- 单一面板（借鉴 kepler.gl）：点功能栏左边的按钮切换 -->
+    <aside class="panel" id="panel">
+      <div class="panel-head" id="paramhead">
+        <span id="panel-title">显示样式</span>
+        <button type="button" class="panel-close" id="panel-close">×</button>
+      </div>
+
+      <!-- 面板 1：显示样式
+           按"谁跟谁联动"分成三组，不再把十几个滑块堆在一起：
+             ① 画法        —— 选完就决定了下面该长出哪些参数
+             ② 该画法的参数 —— 只显示当前画法真的会用到的那几行，换画法整组跟着换
+             ③ 通用        —— 跟画法无关，任何画法下都在
+           ②里的每一行用 data-when 标了"哪几档画法下出现"（空格分隔的画法名），
+           带 data-need="extrude" 的还要等"3D 柱状"勾上才出现。显隐只加/去 class，
+           不删 DOM —— 换画法不会把已经调好的值弄丢，自动化也能照旧拿到这些控件。 -->
+      <div class="panel-body" id="parambody" data-sec="display">
+        <section class="pg">
+          <div class="pg-hd"><span class="pg-t">① 画法</span><span class="pg-x" id="mode-hint"></span></div>
+          <div class="row">
+            <select id="p-mode" aria-label="画法（显示方式）">
+              <option value="point">标记点</option>
+              <option value="cluster">点聚合（气泡）</option>
+              <option value="grid">网格聚合</option>
+              <option value="hex">六边形聚合</option>
+              <option value="region">分层着色</option>
+              <option value="heat">热力图</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="pg">
+          <div class="pg-hd"><span class="pg-t">② <b id="mode-param-name">标记点</b> 参数</span></div>
+
+          <!-- 六边形聚合 -->
+          <label class="row" data-when="hex"><span>六边形层级</span><input type="range" id="p-h3res" min="3" max="8" step="1" value="5"><output id="p-h3res-v">5</output></label>
+          <!-- 标记点 -->
+          <label class="row" data-when="point"><span>点大小</span><input type="range" id="p-size" min="6" max="34" step="1" value="14"><output id="p-size-v">14</output></label>
+          <!-- 网格聚合 -->
+          <label class="row" data-when="grid"><span>格子大小</span><input type="range" id="p-gridsize" min="24" max="90" step="2" value="46"><output id="p-gridsize-v">46px</output></label>
+          <!-- 网格 / 六边形共用：立起来才需要调高度和光照 -->
+          <div class="row" data-when="grid hex">
+            <span>3D 柱状</span>
+            <label class="chk"><input type="checkbox" id="p-extrude"><span>立起来看</span></label>
+          </div>
+          <label class="row" data-when="grid hex" data-need="extrude"><span>柱子高度</span><input type="range" id="p-elevscale" min="5" max="120" step="5" value="30"><output id="p-elevscale-v">30</output></label>
+          <label class="row" data-when="grid hex" data-need="extrude"><span>立体感</span><input type="range" id="p-lightamb" min="20" max="120" step="5" value="75"><output id="p-lightamb-v">0.75</output></label>
+          <label class="row" data-when="point hex grid"><span>透明度</span><input type="range" id="p-alpha" min="20" max="100" step="5" value="85"><output id="p-alpha-v">85%</output></label>
+          <!-- 标记点 -->
+          <div class="row" data-when="point"><span>着色</span>
+            <select id="p-color">
+              <option value="quality">按精度</option>
+              <option value="city">按城市</option>
+              <option value="none">单色</option>
+            </select>
+          </div>
+          <label class="row check" data-when="point"><input type="checkbox" id="p-sizebycount" checked> <span>按客户数调整大小</span></label>
+          <label class="row check" data-when="point"><input type="checkbox" id="p-lod" checked> <span>点太密时自动聚合成网格</span></label>
+          <div class="pg-note" data-when="point">自动聚合时用的格子大小，在「网格聚合」那一档里调。</div>
+          <!-- 分层着色 -->
+          <div class="row" data-when="region" id="row-regionlevel"><span>区域层级</span>
+            <select id="p-regionlevel">
+              <option value="province">省</option>
+              <option value="city">市</option>
+              <option value="district">区县</option>
+            </select>
+          </div>
+          <div class="row" data-when="region" id="row-regionramp"><span>区域配色</span>
+            <select id="p-regionramp">
+              <option value="blue">蓝</option>
+              <option value="orange">橙</option>
+              <option value="green">绿</option>
+              <option value="purple">紫</option>
+              <option value="red">红</option>
+            </select>
+          </div>
+          <!-- 热力图 -->
+          <label class="row" data-when="heat"><span>热力半径</span><input type="range" id="p-heatr" min="8" max="90" step="1" value="28"><output id="p-heatr-v">28</output></label>
+          <label class="row" data-when="heat"><span>热力强度</span><input type="range" id="p-heati" min="30" max="260" step="5" value="100"><output id="p-heati-v">1.0</output></label>
+          <div class="row" data-when="heat"><span>热力配色</span>
+            <select id="p-heatramp">
+              <option value="classic">蓝绿黄红</option>
+              <option value="warm">紫橙黄</option>
+              <option value="red">暗红橙</option>
+            </select>
+          </div>
+          <label class="row" data-when="heat"><span>标注前N</span><input type="range" id="p-heattop" min="0" max="120" step="5" value="30"><output id="p-heattop-v">30</output></label>
+          <!-- 点聚合：参数由缩放级别自己决定，没有可调的 -->
+          <div class="pg-note" data-when="cluster">气泡大小按格内客户数自动分配，这一档没有要调的参数。点地图上的气泡可以直接放大展开。</div>
+        </section>
+
+        <section class="pg">
+          <div class="pg-hd"><span class="pg-t">③ 通用</span><span class="pg-x">任何画法下都在</span></div>
+          <label class="row check"><input type="checkbox" id="p-label"> <span>显示地点名称</span></label>
+          <div class="row col"><span>显示哪些精度</span>
+            <div class="checks" id="p-levels">
+              <label><input type="checkbox" data-q="custom" checked> 已知位置</label>
+              <label><input type="checkbox" data-q="town" checked> 乡镇街道级</label>
+              <label><input type="checkbox" data-q="district" checked> 区县级</label>
+              <label><input type="checkbox" data-q="city" checked> 市级</label>
+              <label><input type="checkbox" data-q="province" checked> 省级</label>
+            </div>
+          </div>
+          <div class="row btns">
+            <button type="button" class="btn tiny ghost" id="btn-reset-params">重置本页参数</button>
+          </div>
+        </section>
+      </div>
+
+      <!-- 面板 2：辐射范围 -->
+      <div class="panel-body" id="basebody" data-sec="radius" hidden>
+        <label class="row"><span>半径</span><input type="range" id="p-radius" min="1" max="60" step="1" value="5"><output id="p-radius-v">5km</output></label>
+        <label class="row"><span>同心环</span>
+          <select id="p-rings">
+            <option value="1">1 层</option><option value="2">2 层</option><option value="3" selected>3 层</option><option value="4">4 层</option>
+          </select>
+        </label>
+        <label class="row check"><input type="checkbox" id="p-ringlabel" checked> <span>标注半径数值</span></label>
+        <label class="row check"><input type="checkbox" id="p-custring"> <span>每个客户也画圈</span></label>
+        <label class="row check"><input type="checkbox" id="p-lines" checked> <span>连线到最近常驻点</span></label>
+        <label class="row"><span>连线样式</span><select id="p-linkstyle">
+          <option value="arc">弧线</option>
+          <option value="line">直线</option>
+        </select></label>
+        <label class="row check"><input type="checkbox" id="p-within"> <span>只看半径内的客户</span></label>
+        <label class="row check"><input type="checkbox" id="p-onlycount"> <span>只看有客户数据的点</span></label>
+        <div class="basestat" id="basestat"></div>
+      </div>
+
+      <!-- 面板 3：常驻地址 -->
+      <div class="panel-body" id="basebox" data-sec="base" hidden>
+        <div class="baselist" id="baselist"></div>
+        <button type="button" class="btn tiny" id="btn-base-add">+ 添加常驻地址</button>
+        <p class="hint">输入地址后按回车解析，或点「点选」在地图上定位。辐射圈和距离都基于它计算。</p>
+      </div>
+
+      <!-- 面板 4：图层（借鉴 kepler.gl 的图层管理） -->
+      <div class="panel-body" id="layersbody" data-sec="layers" hidden>
+        <div class="layerlist">
+          <label class="layer"><input type="checkbox" id="L-points" checked><span>客户点 / 网格</span></label>
+          <label class="layer"><input type="checkbox" id="L-glow" checked><span>热点高光（客户最多的地方发光）</span></label>
+          <label class="layer"><input type="checkbox" id="L-rings" checked><span>辐射圈</span></label>
+          <label class="layer"><input type="checkbox" id="L-lines" checked><span>连线到常驻点</span></label>
+          <label class="layer"><input type="checkbox" id="L-bases" checked><span>常驻地址</span></label>
+          <label class="layer"><input type="checkbox" id="L-legend" checked><span>显示图例</span></label>
+        </div>
+        <div class="row"><span>底图</span>
+          <select id="p-basemap">
+            <option value="normal">标准</option>
+            <option value="satellite">卫星</option>
+          <option value="boundary">本地边界（免密钥）</option>
+            <option value="none">无底图</option>
+          </select>
+        </div>
+        <p class="hint">「客户点 / 网格」是主图层，画法在上面的「显示样式 · 画法」里切。其余都是叠加层。</p>
+      </div>
+
+    </aside>
+
+    <!-- 底部时间轴：可拖拽的时间刷选（参考 kepler.gl 的 time filter、ECharts 的 dataZoom） -->
+    <div class="timeaxis" id="timeaxis">
+      <div class="ta-head">
+        <span class="ta-cap">时间</span>
+        <span class="ta-info" id="ta-range">全部时间</span>
+        <span class="ta-presets" id="ta-presets" role="group" aria-label="快捷时间范围">
+          <button type="button" data-months="3">近 3 月</button>
+          <button type="button" data-months="6">近 6 月</button>
+          <button type="button" data-months="12">近 12 月</button>
+          <button type="button" data-months="0">全部</button>
+        </span>
+        <button type="button" class="ta-reset" id="ta-reset" hidden>重置</button>
+      </div>
+      <div class="ta-track" id="ta-track">
+        <canvas id="ta-canvas"></canvas>
+        <div class="ta-mask" id="ta-mask-l"></div>
+        <div class="ta-mask" id="ta-mask-r"></div>
+        <div class="ta-win" id="ta-win" hidden>
+          <span class="ta-grip" data-edge="l"></span>
+          <span class="ta-grip" data-edge="r"></span>
+        </div>
+        <div class="ta-bub" id="ta-bub" hidden></div>
+      </div>
+      <div class="ta-ticks" id="ta-ticks"></div>
+      <div class="ta-hint">拖动两端选范围 · 拖中间平移 · 双击重置</div>
+    </div>
+
+    <div class="toast" id="toast" hidden></div>
+    <div class="loading" id="loading" hidden>
+      <div class="loading-box">
+        <div class="spin"></div>
+        <div class="loading-txt" id="loading-txt">正在读取文件…</div>
+        <div class="loading-bar"><div class="loading-fill" id="loading-fill"></div></div>
+        <button type="button" class="loading-cancel" id="loading-cancel">取消</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 视图二：分析 ============ -->
+  <section class="view" id="view-analysis" hidden>
+    <!-- 查询条：显式查询 + 计算状态（数据大时能看清是在算还是卡住） -->
+    <div class="ana-bar">
+      <button type="button" class="btn tiny" id="ana-run">查询</button>
+      <label class="ana-auto"><input type="checkbox" id="ana-auto" checked><span>筛选变化时自动查询</span></label>
+      <label class="ana-auto"><span>度量</span>
+        <select id="ana-measure">
+          <!-- 选项由语义层的度量定义表生成（src/analysis/semantic.js 的 MEASURES）。
+               这里只留一个兜底项：加度量改那边一行，不要在这里手写。 -->
+          <option value="cust">客户数</option>
+        </select>
+      </label>
+      <label class="ana-auto"><span>排名取前</span>
+        <select id="ana-topn">
+          <option value="10">10</option>
+          <option value="20" selected>20</option>
+          <option value="50">50</option>
+          <option value="0">全部</option>
+        </select>
+      </label>
+      <span class="engine-badge" id="engine-badge" hidden></span>
+      <span class="ana-status" id="ana-status">就绪</span>
+    </div>
+    <div class="qa-bar">
+      <input type="search" id="qa-input" autocomplete="off"
+        placeholder="用一句话问：广东省有多少客户 / 拼多多上个月多少单 / 前 5 的省份">
+      <button type="button" class="btn tiny" id="qa-run">问一下</button>
+      <span class="qa-hint" id="qa-hint">不联网、不调用模型，纯本地规则匹配</span>
+    </div>
+    <div class="qa-answer" id="qa-answer" hidden></div>
+    <div class="dash" id="dash"></div>
+  </section>
+
+  <!-- ============ 视图三：数据 ============ -->
+  <section class="view" id="view-data" hidden>
+    <div class="databar">
+      <div class="tabs">
+        <button type="button" class="tab active" data-tab="all">全部</button>
+        <button type="button" class="tab" data-tab="ok">已定位</button>
+        <button type="button" class="tab" data-tab="todo">待处理</button>
+      </div>
+      <input type="search" id="q" placeholder="搜索地址 / 编号 / 电话">
+      <select id="sortby">
+        <option value="default">按导入顺序</option>
+        <option value="count">按客户数从多到少</option>
+        <option value="dist">按距常驻点远近</option>
+      </select>
+    </div>
+    <div class="list" id="list"></div>
+    <div class="listfoot"><span id="list-count">暂无数据</span></div>
+  </section>
+
+</main>
+
+<!-- ============ 设置 ============ -->
+<dialog id="dlg-settings" class="dlg">
+  <form method="dialog">
+    <h3>设置</h3>
+    <div class="sect">
+      <div class="sect-h">地点字典 <span class="pill" id="dict-count">0 条</span></div>
+      <p class="hint">地址解析完全在本机完成。想让某个小区、大厦、工业园定位到准确位置，加进字典即可——字典优先级最高。</p>
+      <div class="dict-actions">
+        <button type="button" class="btn tiny" id="btn-dict-import">导入字典</button>
+        <button type="button" class="btn tiny ghost" id="btn-dict-export">导出字典</button>
+        <button type="button" class="btn tiny ghost" id="btn-dict-clear">清空</button>
+      </div>
+      <input type="file" id="dict-file" accept=".csv,.txt,.xlsx,.xls" hidden>
+      <p class="hint">CSV 格式：名称,经度,纬度。手动校正过的位置会自动存进字典。</p>
+    </div>
+    <div class="sect">
+      <div class="sect-h">地图底图</div>
+      <p class="hint">底图用高德瓦片，<b>不需要任何密钥</b>；断网或切到「本地边界」时用离线打包的省市县边界。解析本来就不依赖底图。</p>
+      <details class="help"><summary>本地地址库覆盖情况</summary><ul><li id="db-stats">加载中…</li></ul></details>
+    </div>
+    <div class="sect">
+      <div class="sect-h">配置（可复用）</div>
+      <p class="hint">把当前的字段口径、度量、看板画法、我的视图整套导出成 JSON，换台机器导入即可复用；也可以放进版本库统一管理。</p>
+      <div class="dict-actions">
+        <button type="button" class="btn tiny" id="btn-cfg-export">导出配置</button>
+        <button type="button" class="btn tiny ghost" id="btn-cfg-import">导入配置</button>
+      </div>
+      <input type="file" id="cfg-file" accept=".json" hidden>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn ghost" id="btn-clear-cache">清空解析缓存</button>
+      <button type="submit" class="btn" id="btn-save-settings">保存</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ 我的视图（参考 Power BI 的书签） ============ -->
+<dialog id="dlg-views" class="dlg">
+  <form method="dialog">
+    <h3>我的视图</h3>
+    <div class="sect">
+      <div class="sect-h">保存当前视图</div>
+      <p class="hint">会记住：时间/平台/区域等筛选条件、地图画法、区域层级、图表样式。下次一键回到这个状态。</p>
+      <label class="field">
+        <span>视图名称</span>
+        <input type="text" id="view-name" placeholder="例如：深圳待跟进客户" autocomplete="off">
+      </label>
+      <button type="button" class="btn tiny" id="view-save">保存当前状态</button>
+    </div>
+    <div class="sect">
+      <div class="sect-h">已保存 <span class="pill" id="view-count">0</span></div>
+      <div class="viewlist" id="viewlist"></div>
+    </div>
+    <div class="dlg-actions">
+      <button type="submit" class="btn">关闭</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ 导入 ============ -->
+<dialog id="dlg-import" class="dlg wide">
+  <form method="dialog">
+    <h3>导入数据</h3>
+    <div class="importgrid">
+      <div>
+        <label class="field">
+          <span>粘贴（一行一个地址）</span>
+          <textarea id="imp-text" rows="10" placeholder="广东省深圳市罗湖区笋岗街道示例大厦803"></textarea>
+        </label>
+        <label class="field">
+          <span>选择文件（.txt / .csv / .xlsx）</span>
+          <input type="file" id="imp-file" accept=".txt,.csv,.xlsx,.xls">
+        </label>
+        <p class="hint">CSV / Excel 会自动识别：地址、省市区编码、时间、平台、客户数、订单号、金额。<br>
+          带经纬度列的会直接使用，跳过解析。</p>
+      </div>
+      <div>
+        <div class="previewhead"><span>预览（<b id="imp-count">0</b> 条）</span>
+          <button type="button" class="btn tiny ghost" id="btn-preview">刷新预览</button></div>
+        <div class="preview" id="imp-preview"></div>
+      </div>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn ghost" id="btn-import-cancel">取消</button>
+      <button type="button" class="btn" id="btn-import-confirm">导入</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ============ 详情 ============ -->
+<dialog id="dlg-detail" class="dlg">
+  <form method="dialog">
+    <h3 id="d-title">地址详情</h3>
+    <div id="d-body" class="detail"></div>
+    <div class="dlg-actions">
+      <button type="button" class="btn ghost" id="btn-d-manual">手动在地图上点选</button>
+      <button type="button" class="btn ghost" id="btn-d-save-place">存为地点字典</button>
+      <button type="button" class="btn ghost" id="btn-d-retry">重新解析</button>
+      <button type="submit" class="btn">关闭</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="address-clean.js"></script>
+<script src="geo-data.js"></script>
+<script src="geo-boundary-p.js"></script>
+<script src="local-geocode.js"></script>
+<!-- deck.gl 由 app.js 在空闲时按需注入（本地打包，不走 CDN）：不占首屏，双击打开能省 ~54ms -->
+<script src="app.js?v=14f654c0"></script>
+</body>
+</html>

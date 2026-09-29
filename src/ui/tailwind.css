@@ -1,0 +1,22 @@
+/* Tailwind v4 入口。
+   只引入 theme + utilities，**跳过 preflight**——
+   现有的手写 CSS 是按自己的 reset 写的，Tailwind 的 preflight 会把它冲掉。
+   这样 Tailwind 只作用于新写的 React 岛（带 tw- 前缀的类名）。 */
+@import "tailwindcss/theme.css" layer(theme);
+
+/* 关键：关掉自动扫描，只扫 src/ui。
+   否则 Tailwind 会去扫项目根目录，包括 805MB 的 CSV 和 6MB 的边界包，
+   构建时间会从 2 秒变成 110 秒。 */
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@source "../ui/**/*.{js,jsx}";
+@source "../main.js";
+
+/* 设计令牌：和现有 styles.css 的变量对齐，两边共用一套 */
+@theme {
+  --color-ink: #1d1d1f;
+  --color-muted: #6e6e73;
+  --color-accent: #0071e3;
+  --color-line: rgba(0, 0, 0, 0.08);
+  --radius-card: 14px;
+  --font-sans: -apple-system, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}

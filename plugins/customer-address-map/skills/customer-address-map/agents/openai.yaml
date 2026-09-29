@@ -1,0 +1,4 @@
+interface:
+  display_name: "客户地址地图（离线）"
+  short_description: "把订单/客户表变成可双击打开的离线客户分布地图与粗画像。"
+  default_prompt: "Use $customer-address-map to turn this order table into an offline customer map."

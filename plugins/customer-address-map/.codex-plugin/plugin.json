@@ -1,0 +1,40 @@
+{
+  "name": "customer-address-map",
+  "version": "1.0.0",
+  "description": "把订单/客户表变成可双击打开的离线客户分布地图与粗画像（时间 / 平台 / 店铺 / 地区四个维度）",
+  "author": {
+    "name": "客户地址地图"
+  },
+  "keywords": [
+    "customer-map",
+    "offline",
+    "geocoding",
+    "china",
+    "address",
+    "analytics",
+    "画像"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "客户地址地图（离线）",
+    "shortDescription": "订单表 → 离线客户分布地图 + 粗画像，双击就能用",
+    "longDescription": "把订单/客户表（CSV/Excel）在本机聚合成汇总表，再拼成一个「双击打开就能用」的文件夹：地图（六种画法、时间轴、平台/店铺筛选、地区钻取）+ 分析页（图表切换、钻取、客户画像四档）。全程不联网、不上传、不需要任何地图密钥；数据只留在本机。",
+    "developerName": "客户地址地图",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "用 $customer-address-map 把这份订单表做成客户分布地图",
+      "用 $customer-address-map 分析这批订单的地域和平台分布",
+      "用 $customer-address-map 粗绘一下这批客户的画像"
+    ],
+    "brandColor": "#0071E3",
+    "screenshots": [
+      "./assets/screenshot1.png",
+      "./assets/screenshot2.png",
+      "./assets/screenshot3.png"
+    ]
+  }
+}

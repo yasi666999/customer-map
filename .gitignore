@@ -1,0 +1,35 @@
+# ============ 真实数据一律不入库 ============
+# 目录里可能有几百 MB ~ 1 GB 的原始订单导出，以及聚合产物
+/*.csv
+!示例_订单数据.csv
+汇总_*.csv
+未解析_清单.csv
+_旧数据/
+/*.xlsx
+/*.xls
+_dev/*.csv
+*.bak
+
+# ============ 大体积二进制（按需自行获取）============
+# DuckDB wasm 约 34 MB：只有 http 模式下的 SQL 加速通道用它，双击版用不到
+vendor/duckdb/
+
+# ============ 构建产物与中间目录 ============
+node_modules/
+dist/
+_backup/
+_tmp/
+.npm-cache/
+_dev/_boundary_raw/
+/*.zip
+
+# ============ 大体积截图 ============
+界面_*.png
+_dev/*.png
+
+# ============ 编辑器与系统文件 ============
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+tests/.cache/

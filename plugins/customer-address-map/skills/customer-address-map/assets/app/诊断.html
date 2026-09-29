@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>自查</title>
+<style>
+  body { font: 15px/1.7 "Microsoft YaHei", Arial, sans-serif; max-width: 820px; margin: 0 auto;
+         padding: 28px 20px 60px; color: #1b1f24; background: #f6f7f9; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  .sub { color: #6b7480; font-size: 13px; margin-bottom: 20px; }
+  .sec { margin: 22px 0 8px; font-size: 13px; font-weight: 700; color: #6b7480; letter-spacing: .04em; }
+  .row { display: flex; gap: 10px; align-items: flex-start; padding: 11px 14px;
+         background: #fff; border: 1px solid #e3e6ea; border-radius: 8px; margin-bottom: 8px; }
+  .row .mark { flex: none; width: 22px; text-align: center; font-weight: 700; }
+  .row.ok .mark { color: #1a9c63; }
+  .row.bad .mark { color: #dc2626; }
+  .row.wait .mark { color: #94a3b8; }
+  .row.warn .mark { color: #d97706; }
+  .row .label { flex: none; width: 200px; font-weight: 600; }
+  .row .note { color: #6b7480; font-size: 13px; word-break: break-word; }
+  .row.bad { border-color: #f3b4b4; background: #fff6f6; }
+  .row.warn { border-color: #f5d9a8; background: #fffbf2; }
+  .verdict { margin-top: 22px; padding: 16px 18px; border-radius: 10px; background: #eaf0fe;
+             border: 1px solid #c7d8fd; font-size: 14px; }
+  .verdict.bad { background: #fff6f6; border-color: #f3b4b4; }
+  #testmap { width: 100%; height: 240px; margin: 8px 0 0; border: 1px solid #e3e6ea;
+             border-radius: 8px; background: #eef1f4; overflow: hidden; }
+  .tip { color: #6b7480; font-size: 12px; margin-top: 24px; border-top: 1px solid #e3e6ea; padding-top: 12px; }
+</style>
+</head>
+<body>
+<h1>自查</h1>
+<div class="sub">双击打开这个文件，等 3~10 秒。把整页结果截图发给我就行。</div>
+<div id="out"></div>
+<div class="verdict" id="verdict">正在检查，请稍候…</div>
+<div class="tip">这个页面只做检查，不修改任何文件、不读取你的数据、不上传任何东西。</div>
+
+<script>
+var out = document.getElementById("out");
+var bad = 0, warn = 0;
+
+function line(label, state, note) {
+  var el = document.createElement("div");
+  el.className = "row " + state;
+  var mk = state === "ok" ? "\u2713" : (state === "bad" ? "\u2715" : (state === "warn" ? "!" : "\u2026"));
+  el.innerHTML = "<div class=\"mark\">" + mk + "</div><div class=\"label\">" + label +
+    "</div><div class=\"note\">" + (note || "") + "</div>";
+  out.appendChild(el);
+  if (state === "bad") { bad++; }
+  if (state === "warn") { warn++; }
+  return el;
+}
+function sec(t) {
+  var el = document.createElement("div");
+  el.className = "sec";
+  el.textContent = t;
+  out.appendChild(el);
+}
+function loadScript(src) {
+  return new Promise(function (resolve) {
+    var s = document.createElement("script");
+    s.src = src;
+    s.onload = function () { resolve(true); };
+    s.onerror = function () { resolve(false); };
+    document.head.appendChild(s);
+  });
+}
+function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; }); }
+
+async function main() {
+  sec("一、运行环境");
+  line("打开方式", "ok", location.protocol === "file:" ? "本地文件直接打开（双击方式）" : location.protocol + "//" + location.host);
+  line("浏览器", "ok", navigator.userAgent);
+
+  var webgl = false;
+  try {
+    var cv = document.createElement("canvas");
+    webgl = !!(cv.getContext("webgl2") || cv.getContext("webgl") || cv.getContext("experimental-webgl"));
+  } catch (e) { webgl = false; }
+  line("WebGL 支持", webgl ? "ok" : "bad",
+    webgl ? "正常，地图有渲染能力" : "没有 WebGL，地图会是一片空白。请换 Chrome / Edge，或关掉浏览器的省电模式与硬件加速禁用项");
+
+  try {
+    localStorage.setItem("_cm_probe", "1");
+    localStorage.removeItem("_cm_probe");
+    line("本地存储", "ok", "正常（参数、常驻地址、解析缓存都能保存）");
+  } catch (e) {
+    line("本地存储", "bad", "被浏览器禁用，导出的参数和缓存无法保存（不影响解析和地图）");
+  }
+
+  sec("二、本地资源是否齐全");
+  line("地址清洗规则", (await loadScript("address-clean.js")) && !!window.AddressClean ? "ok" : "bad",
+    window.AddressClean ? "address-clean.js 已加载" : "address-clean.js 没找到或加载失败，地址清洗会失效");
+
+  var geoOk = await loadScript("geo-data.js");
+  if (geoOk && window.GEO_DB) {
+    var db = window.GEO_DB;
+    line("本地地址库", "ok", db.P.length + " 个省 / " + db.C.length + " 个市 / " + db.D.length + " 个区县 / " +
+      db.T.length + " 个乡镇街道（来源：" + db.src + "）");
+  } else {
+    line("本地地址库", "bad", "geo-data.js 没找到或加载失败，地址解析会完全不可用");
+  }
+
+  line("解析引擎", (await loadScript("local-geocode.js")) && !!window.LocalGeocode ? "ok" : "bad",
+    window.LocalGeocode ? "local-geocode.js 已加载（本地匹配算法，不联网）" : "local-geocode.js 没找到或加载失败");
+
+  var bOk = await loadScript("geo-boundary-p.js");
+  line("省级边界底图", bOk && window.CN_BOUNDARY_P ? "ok" : "warn",
+    window.CN_BOUNDARY_P ? ("已加载 " + window.CN_BOUNDARY_P.length + " 个省界，断网时可以用它当底图")
+      : "没加载到，断网时地图没有底图（点位照常显示）");
+
+  sec("三、核心能力实跑（不联网）");
+
+  // 真的解析一条地址 —— 这是这个工具最核心的能力，光"文件在"不算数
+  if (window.AddressClean && window.GEO_DB && window.LocalGeocode) {
+    var probe = line("离线地址解析", "wait", "正在解析样例地址…");
+    try {
+      var geo = window.LocalGeocode.createGeocoder(window.GEO_DB);
+      var sample = "广东省深圳市福田区华强北街道示例路1号示例大厦";
+      var cleaned = window.AddressClean.cleanAddress(sample);
+      var t0 = Date.now();
+      var res = geo.lookup(cleaned.clean || sample);
+      var ms = Date.now() - t0;
+      if (res && res.ok) {
+        probe.className = "row ok";
+        probe.querySelector(".mark").textContent = "\u2713";
+        probe.querySelector(".note").textContent = "样例地址解析成功：经度 " + res.lng.toFixed(5) +
+          " / 纬度 " + res.lat.toFixed(5) + "，精度 " + (res.quality || res.reason || "未知") + "，耗时 " + ms + " 毫秒";
+      } else {
+        probe.className = "row bad";
+        probe.querySelector(".mark").textContent = "\u2715";
+        probe.querySelector(".note").textContent = "样例地址没解析出来：" + ((res && (res.reason || res.error)) || "原因不明");
+        bad++;
+      }
+    } catch (e) {
+      probe.className = "row bad";
+      probe.querySelector(".mark").textContent = "\u2715";
+      probe.querySelector(".note").textContent = "解析时出错：" + e.message;
+      bad++;
+    }
+  } else {
+    line("离线地址解析", "bad", "前置资源缺失，跳过（先修上面红色的项）");
+  }
+
+  // Excel 组件：必须本地就有，否则断网导不了 xlsx
+  var xOk = await loadScript("vendor/xlsx/xlsx.full.min.js");
+  line("Excel 导入组件（本地）", xOk && window.XLSX ? "ok" : "bad",
+    window.XLSX ? "vendor/xlsx 已就绪，断网也能导入 .xlsx / .xls"
+      : "vendor/xlsx 缺失，Excel 导入不可用（可以把表格另存为 CSV 再导入）");
+
+  sec("四、地图能不能画出来");
+  var mapLine = line("加载 deck.gl", "wait", "正在加载 vendor/deckgl（约 2MB，本地读取）…");
+  var deckOk = await loadScript("vendor/deckgl/deck.gl.min.js");
+  if (!deckOk || !window.deck || !window.deck.Deck) {
+    mapLine.className = "row bad";
+    mapLine.querySelector(".mark").textContent = "\u2715";
+    mapLine.querySelector(".note").textContent = "vendor/deckgl/deck.gl.min.js 没找到或加载失败，地图无法渲染";
+    bad++;
+  } else {
+    mapLine.className = "row ok";
+    mapLine.querySelector(".mark").textContent = "\u2713";
+    mapLine.querySelector(".note").textContent = "deck.gl 已加载" + (window.deck.VERSION ? "（版本 " + window.deck.VERSION + "）" : "");
+
+    if (!webgl) {
+      line("实际渲染测试", "bad", "没有 WebGL，跳过渲染");
+    } else {
+      var host = document.createElement("div");
+      host.id = "testmap";
+      out.appendChild(host);
+      var ok3d = false, err = "";
+      try {
+        // preserveDrawingBuffer 打开才能把 WebGL 画布拷出来数像素 —— 否则拿到的永远是空白
+        // 等一帧，让浏览器先把容器尺寸算出来；再显式把宽高传给 deck ——
+        // 不传的话 deck 会退回按 window 量，画布尺寸和容器对不上。
+        await wait(80);
+        var deck = new window.deck.Deck({
+          parent: host,
+          width: host.clientWidth,
+          height: host.clientHeight,
+          views: [new window.deck.MapView({ repeat: false })],
+          initialViewState: { longitude: 114.06, latitude: 22.54, zoom: 9, pitch: 45 },
+          controller: false,
+          glOptions: { preserveDrawingBuffer: true },
+          layers: [new window.deck.ScatterplotLayer({
+            id: "probe",
+            data: [{ p: [114.05, 22.55] }, { p: [114.07, 22.53] }, { p: [114.03, 22.52] }],
+            getPosition: function (d) { return d.p; },
+            // 半径必须写 radiusUnits：默认单位是「米」，30 米在这个缩放级别还不到一个像素
+            getRadius: 30, radiusUnits: "pixels", getFillColor: [0, 113, 227]
+          })]
+        });
+        await wait(2500);
+        var cvs = host.querySelector("canvas");
+        // 不只看"画布在不在"，而是把画布拷进 2D 画布数一遍画上了多少像素。
+        // 只验画布存在的话，显卡驱动有问题、图层没画出来，这里也会假绿。
+        var painted = 0;
+        if (cvs && cvs.width > 0 && cvs.height > 0) {
+          var tmp = document.createElement("canvas");
+          tmp.width = cvs.width; tmp.height = cvs.height;
+          var g2 = tmp.getContext("2d");
+          g2.drawImage(cvs, 0, 0);
+          var px = g2.getImageData(0, 0, tmp.width, tmp.height).data;
+          for (var pi = 3; pi < px.length; pi += 4 * 37) { if (px[pi] > 24) { painted++; } }
+          ok3d = painted > 20;
+        }
+        if (deck && deck.finalize) { deck.finalize(); }
+      } catch (e) { err = e.message || String(e); }
+      line("实际渲染测试", ok3d ? "ok" : "bad",
+        ok3d ? ("已经在这个页面里真的画出了一张带 3D 倾角的地图（画上了 " + painted + " 个采样像素）")
+          : ("没画出内容" + (err ? "：" + err : "，多半是显卡驱动或硬件加速被禁用了")));
+    }
+  }
+
+  sec("五、结论");
+  var v = document.getElementById("verdict");
+  if (bad === 0 && warn === 0) {
+    v.textContent = "全部正常。地图、本地解析、Excel 导入都能用，断网也不影响。";
+  } else if (bad === 0) {
+    v.textContent = "主要功能都正常，有 " + warn + " 项提示（见黄色行），不影响使用。";
+  } else {
+    v.className = "verdict bad";
+    v.textContent = "发现 " + bad + " 项问题（见红色行）。按红行右边的说明处理；实在不行把这一页截图发我。";
+  }
+}
+
+main();
+</script>
+</body>
+</html>

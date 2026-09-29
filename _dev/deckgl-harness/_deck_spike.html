@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>deck.gl 可行性验证</title>
+<style>html,body{margin:0;height:100%;background:#0b0d10;overflow:hidden}#app{position:absolute;inset:0}</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="../../geo-boundary-p.js"></script>
+<script src="../../vendor/deckgl/deck.gl.min.js"></script>
+<script>
+(function () {
+  var feats = window.CN_BOUNDARY_P || [];
+  function toCoords(flat) { var o = []; for (var i = 0; i < flat.length; i += 2) { o.push([flat[i], flat[i + 1]]); } return o; }
+  var fc = { type: 'FeatureCollection', features: feats.map(function (f) {
+    var rings = f[3] || [];
+    return { type: 'Feature', properties: { code: f[0], name: f[1] },
+      geometry: { type: 'MultiPolygon', coordinates: rings.map(function (r) { return [toCoords(r)]; }) } };
+  }) };
+  var pts = [];
+  for (var i = 0; i < 3000; i++) { pts.push([73 + Math.random() * 62, 18 + Math.random() * 35, (i % 50) + 1]); }
+
+  var deck = window.deck;
+  var COLOR_RANGE = [[1,152,189],[73,227,206],[216,254,181],[254,237,177],[254,173,84],[209,55,78]];
+  function makeLayers() {
+    return [
+      new deck.GeoJsonLayer({ id: 'bnd', data: fc, stroked: true, filled: false, pickable: true,
+        getLineColor: [120, 140, 170], lineWidthMinPixels: 0.8 }),
+      new deck.HexagonLayer({ id: 'hex', data: pts, pickable: true,
+        getPosition: function (d) { return [d[0], d[1]]; },
+        radius: 60000, elevationScale: 200, extruded: true, coverage: 0.9, colorRange: COLOR_RANGE }),
+      new deck.ScatterplotLayer({ id: 'pts', data: pts, pickable: true,
+        getPosition: function (d) { return [d[0], d[1]]; },
+        radiusMinPixels: 2, getFillColor: [0, 113, 227, 180] })
+    ];
+  }
+  var gl = new deck.DeckGL({
+    views: [new deck.MapView({ repeat: false })],
+    initialViewState: { longitude: 105, latitude: 35, zoom: 4, pitch: 40, bearing: 0 },
+    controller: true,
+    layers: makeLayers()
+  });
+  window.__spike = { gl: gl, features: fc.features.length, points: pts.length, pts: pts, fc: fc,
+    empty: function () { gl.setProps({ layers: [] }); },
+    restore: function () { gl.setProps({ layers: makeLayers() }); } };
+})();
+</script>
+</body>
+</html>

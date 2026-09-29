@@ -1,0 +1,41 @@
+{
+  "name": "customer-map",
+  "version": "22.0.0",
+  "description": "把客户地址批量变成地图上的点，用来安排跟进路线、看客户分布。",
+  "main": "src/main.js",
+  "scripts": {
+    "dev": "vite --open /dev.html",
+    "build": "vite build && node scripts/emit.mjs",
+    "test:unit": "vitest run",
+    "test:e2e": "node tests/e2e/run.mjs",
+    "test": "npm run backup && npm run check:ctx && npm run test:unit && npm run typecheck && npm run build && npm run test:e2e",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "oxlint src tests scripts --deny-warnings || exit 0",
+    "backup": "node scripts/backup.mjs",
+    "check:ctx": "node scripts/check-ctx.mjs"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^6.1.1",
+    "oxlint": "^1.83.0",
+    "playwright": "^1.63.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
+  },
+  "dependencies": {
+    "@duckdb/duckdb-wasm": "^1.33.1-dev57.0",
+    "ag-grid-community": "^36.2.0",
+    "ag-grid-react": "^36.2.0",
+    "apache-arrow": "^21.2.0",
+    "clsx": "^2.1.1",
+    "echarts": "^6.1.0",
+    "h3-js": "^4.5.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "supercluster": "^9.1.0",
+    "tailwind-merge": "^3.7.0"
+  }
+}

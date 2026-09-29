@@ -1,0 +1,20 @@
+{
+  "name": "customer-map",
+  "interface": {
+    "displayName": "客户地址地图（本仓库）"
+  },
+  "plugins": [
+    {
+      "name": "customer-address-map",
+      "source": {
+        "source": "local",
+        "path": "./plugins/customer-address-map"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

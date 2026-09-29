@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>deck.gl 底图验证</title>
+<style>html,body{margin:0;height:100%;background:#0b0d10;overflow:hidden}#app{position:absolute;inset:0}</style>
+</head><body><div id="app"></div>
+<script src="../../vendor/deckgl/deck.gl.min.js"></script>
+<script>
+(function () {
+  var deck = window.deck;
+  var src = new URLSearchParams(location.search).get('src') || 'amap';
+  var tmpl = src === 'osm'
+    ? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+    : 'https://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}';
+  var stats = { ok: 0, fail: 0, errors: [] };
+  var layer = new deck.TileLayer({
+    id: 'base', data: tmpl, minZoom: 0, maxZoom: 18, tileSize: 256,
+    renderSubLayers: function (props) {
+      var b = props.tile.bbox;   // {west, south, east, north}
+      return new deck.BitmapLayer(props, {
+        data: null,          // 关键：不清掉的话 BitmapLayer 会把瓦片模板字符串当成数据容器
+        image: props.data,
+        bounds: [b.west, b.south, b.east, b.north]
+      });
+    },
+    onTileLoad: function () { stats.ok++; },
+    onTileError: function (e) { stats.fail++; if (stats.errors.length < 3) { stats.errors.push(String(e && e.error || e)); } }
+  });
+  var gl = new deck.DeckGL({
+    views: [new deck.MapView({ repeat: false })],
+    initialViewState: { longitude: 113.5, latitude: 23.1, zoom: 9 },
+    controller: true,
+    layers: [layer]
+  });
+  window.__bm = { gl: gl, stats: stats, src: src, bboxSample: null };
+})();
+</script></body></html>
